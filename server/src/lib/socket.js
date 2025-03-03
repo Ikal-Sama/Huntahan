@@ -33,34 +33,34 @@ io.on("connection", (socket) => {
     try {
       const recipient = await User.findById(userId); // Recipient's ID
       const sender = await User.findById(senderId); // Sender's ID
-  
+
       if (!recipient || !sender) {
         return;
       }
-  
+
       // Update the friend request status to "accepted"
       const friendRequest = recipient.friendRequests.find(
         (request) => request.senderId.toString() === senderId && request.status === "pending"
       );
-  
+
       if (!friendRequest) {
         return;
       }
-  
+
       friendRequest.status = "accepted";
       await recipient.save();
-  
+
       // Add each other as friends
       if (!recipient.friends.includes(senderId)) {
         recipient.friends.push(senderId);
         await recipient.save();
       }
-  
+
       if (!sender.friends.includes(userId)) {
         sender.friends.push(userId);
         await sender.save();
       }
-  
+
       // Notify the sender that the request was accepted
       const senderSocketId = getReceiverSocketId(senderId);
       if (senderSocketId) {
@@ -71,17 +71,6 @@ io.on("connection", (socket) => {
       }
     } catch (error) {
       console.log("Error accepting friend request:", error);
-    }
-  });
-
-  // Handle friend request decline
-  socket.on("declineFriendRequest", ({ senderId }) => {
-    const senderSocketId = getReceiverSocketId(senderId);
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("friendRequestDeclined", {
-        recipientId: userId,
-        recipientName: "User", // Replace with the recipient's name if available
-      });
     }
   });
 

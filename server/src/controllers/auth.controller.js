@@ -196,38 +196,53 @@ export const acceptFriendRequest = async (req, res) => {
       return res.status(404).json({ message: "User or sender not found" });
     }
 
-    // Find and update the friend request in the recipient's friendRequests array
+    // Find the friend request in the recipient's friendRequests array
     const friendRequest = recipient.friendRequests.find(
-      (request) => request.senderId.toString() === senderId && request.status === "pending"
+      (request) =>
+        request.senderId.toString() === senderId && request.status === "pending"
     );
 
     if (!friendRequest) {
-      return res.status(400).json({ message: "Friend request not found" });
+      return res.status(400).json({ message: "Friend request not found or already accepted" });
     }
 
-    friendRequest.status = "accepted";
-    await recipient.save();
+    // Use atomic operations to update the database
+    await User.updateOne(
+      { _id: userId }, // Recipient's ID
+      {
+        $pull: { friendRequests: { senderId: senderId } }, // Remove the friend request
+        $addToSet: { friends: senderId }, // Add the sender to the recipient's friends list
+      }
+    );
 
-    // Add the sender to the recipient's friends list
-    recipient.friends.push(senderId);
-    await recipient.save();
+    await User.updateOne(
+      { _id: senderId }, // Sender's ID
+      {
+        $pull: { sentRequests: { receiverId: userId } }, // Remove the sent request
+        $addToSet: { friends: userId }, // Add the recipient to the sender's friends list
+      }
+    );
 
-    // Add the recipient to the sender's friends list
-    sender.friends.push(userId);
-    await sender.save();
-
-    // Notify the sender that their request has been accepted
+    // Notify the sender that the request was accepted
     const senderSocketId = getReceiverSocketId(senderId);
     if (senderSocketId) {
+      console.log("Emitting friendRequestAccepted to sender:", senderSocketId);
       io.to(senderSocketId).emit("friendRequestAccepted", {
         recipientId: userId,
         recipientName: recipient.fullName,
+        recipientProfilePic: recipient.profilePic,
       });
+    } else {
+      console.log("Sender is not connected to the socket.");
     }
 
-    res.status(200).json({ message: "Friend request accepted" });
+    // Return a success response
+    res.status(200).json({
+      message: "Friend request accepted",
+    });
+
   } catch (error) {
-    console.log("Error in acceptFriendRequest: ", error);
+    console.log("Error accepting friend request:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

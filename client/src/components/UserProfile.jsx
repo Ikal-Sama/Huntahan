@@ -15,6 +15,7 @@ export default function UserProfile({ selectedUser }) {
   } = useAuthStore();
 
   const [requestStatus, setRequestStatus] = useState(null);
+  const [isFriend, setIsFriend] = useState(false);
 
   useEffect(() => {
     checkAuth();
@@ -28,6 +29,12 @@ export default function UserProfile({ selectedUser }) {
 
   useEffect(() => {
     if (authUser && selectedUser) {
+      // Check if the selected user is already a friend
+      const isAlreadyFriend = authUser.friends.some(
+        (friendId) => friendId.toString() === selectedUser._id
+      );
+      setIsFriend(isAlreadyFriend);
+
       // Check sentRequests for a pending request to the selected user
       const existingRequest = authUser.sentRequests.find(
         (request) =>
@@ -57,6 +64,8 @@ export default function UserProfile({ selectedUser }) {
     fetchFriendRequests(); // Fetch updated friend requests
   };
 
+  console.log("selected user profile as friend:", selectedUser);
+
   return (
     <div className='mt-10 flex-1'>
       <div className='flex flex-col justify-center items-center gap-3'>
@@ -72,7 +81,16 @@ export default function UserProfile({ selectedUser }) {
           <h1 className='text-xl font-semibold'>{selectedUser.fullName}</h1>
           <p className='text-muted-foreground mb-2'>{selectedUser.email}</p>
 
-          {requestStatus === "pending" ? (
+          {isFriend ? (
+            <Button disabled>
+              <p className='hidden md:flex lg:flex items-center gap-2'>
+                Friends <User />
+              </p>
+              <span className='block md:hidden lg:hidden'>
+                <User />
+              </span>
+            </Button>
+          ) : requestStatus === "pending" ? (
             <Button className='cursor-pointer' onClick={handleFriendRequest}>
               <p className='hidden md:flex lg:flex items-center gap-2'>
                 Cancel Request <UserMinus />

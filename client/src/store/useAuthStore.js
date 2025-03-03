@@ -18,6 +18,7 @@ export const useAuthStore = create((set, get) => ({
   friendRequests: storedFriendRequests && storedFriendRequests !== "undefined"
     ? JSON.parse(storedFriendRequests)
     : [],
+  acceptanceNotifications: [],
 
   checkAuth: async () => {
     try {
@@ -111,40 +112,49 @@ export const useAuthStore = create((set, get) => ({
 
   connectSocket: () => {
     const { authUser, socket } = get();
-    if (!authUser || socket?.connected) return;
-
+    if (!authUser) return; // No user logged in, no need to connect
+  
+    if (socket && socket.connected) return; // Already connected
+  
     const newSocket = io(BASE_URL, { query: { userId: authUser._id } });
     set({ socket: newSocket });
-
-    newSocket.on("getOnlineUsers", (userIds) => set({ onlineUsers: userIds }));
-
-    newSocket.on("friendRequest", (data) => {
-      if (data.senderId !== authUser._id) { // Only add if the logged-in user is the recipient
-        set((state) => {
-          const updatedRequests = [...state.friendRequests, data];
-          localStorage.setItem("friendRequests", JSON.stringify(updatedRequests)); // Update localStorage
-          return { friendRequests: updatedRequests };
-        });
-      }
+  
+    newSocket.on("connect", () => {
+      console.log("Socket connected:", newSocket.id);
     });
-
-    newSocket.on("sendFriendRequest", (data) => {
-        if (data.recipientId === authUser._id) { // Only update if the logged-in user is the recipient
+  
+    newSocket.on("disconnect", () => {
+      console.log("Socket disconnected");
+    });
+  
+    newSocket.on("getOnlineUsers", (userIds) => set({ onlineUsers: userIds }));
+  
+      newSocket.on("friendRequest", (data) => {
+        if (data.senderId !== authUser._id) {
             set((state) => {
-                const updatedRequests = [...state.friendRequests, {
-                    senderId: data.senderId,
-                    recipientId: data.recipientId,
-                    status: "pending"
-                }];
+                const updatedRequests = [...state.friendRequests, data];
                 localStorage.setItem("friendRequests", JSON.stringify(updatedRequests));
                 return { friendRequests: updatedRequests };
             });
         }
     });
 
-    newSocket.on("friendRequestAccepted", (data) => toast.success(`${data.recipientName} accepted your friend request!`));
-    newSocket.on("friendRequestDeclined", (data) => toast.error(`${data.recipientName} declined your friend request.`));
-
+    newSocket.on("friendRequestAccepted", (data) => {
+        console.log("Received friendRequestAccepted event:", data);
+        set((state) => ({
+            acceptanceNotifications: [...state.acceptanceNotifications, {
+                message: `${data.recipientName} accepted your friend request.`,
+                recipientId: data.recipientId,
+                recipientName: data.recipientName,
+                recipientProfilePic: data.recipientProfilePic
+            }],
+        }));
+    });
+  
+    newSocket.on("friendRequestDeclined", (data) => {
+      toast.error(`${data.recipientName} declined your friend request.`);
+    });
+  
     newSocket.connect();
   },
 
@@ -168,13 +178,32 @@ export const useAuthStore = create((set, get) => ({
 
   acceptFriendRequest: async (senderId) => {
     try {
-      const { socket } = get();
-      await axiosInstance.post(`/auth/acceptfriend/${senderId}`);
-      await get().fetchFriendRequests(); // Refresh friend requests after accepting
-      socket?.emit("acceptFriendRequest", { senderId });
-      toast.success("Friend request accepted");
+      const { socket, authUser  } = get();
+      const response = await axiosInstance.post(`/auth/acceptfriend/${senderId}`);
+  
+      if (response.data && response.data.message === "Friend request accepted") {
+        // Update the local state to remove the accepted friend request
+        set((state) => ({
+          friendRequests: state.friendRequests.filter(
+            (request) => request.senderId !== senderId
+          ),
+        }));
+  
+        // Notify the sender via socket
+        socket?.emit("friendRequestAccepted", {
+          senderId,
+          recipientName: authUser ?.fullName,
+          recipientProfilePic: authUser ?.profilePic,
+        });
+  
+        // Show success toast
+        toast.success("Friend request accepted");
+      } else {
+        toast.error("Failed to accept friend request: Invalid response from server");
+      }
     } catch (error) {
-      toast.error("Failed to accept friend request");
+      console.error("Error accepting friend request:", error);
+      toast.error(error.response?.data?.message || "Failed to accept friend request");
     }
   },
 

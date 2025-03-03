@@ -27,7 +27,7 @@ export const getFriendsForMessages = async (req, res) => {
         // Find the logged-in user and populate the `friends` field directly
         const loggedInUser = await User.findById(loggedInUserId).populate({
             path: "friends",
-            select: "fullName profilePic", // Include the fields you want to populate
+            select: "fullName email profilePic", // Include the fields you want to populate
         });
 
         if (!loggedInUser) {
@@ -38,6 +38,7 @@ export const getFriendsForMessages = async (req, res) => {
         const friends = loggedInUser.friends.map((friend) => ({
             _id: friend._id,
             fullName: friend.fullName,
+            email: friend.email,
             profilePic: friend.profilePic,
         }));
 
