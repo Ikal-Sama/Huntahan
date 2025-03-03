@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import Loading from "./components/Loading";
+import OtherProfile from "./pages/OtherProfile";
 
 export default function App() {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
@@ -43,6 +44,11 @@ export default function App() {
         <Route
           path='/profile'
           element={authUser ? <ProfilePage /> : <Navigate to='/login' />}
+        />
+
+        <Route
+          path='/user-profile/:id'
+          element={authUser ? <OtherProfile /> : <Navigate to='/login' />}
         />
       </Routes>
       <Toaster />

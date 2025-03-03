@@ -54,21 +54,26 @@ export default function SignUpPage() {
             <div className='bg-primary/10 rounded-xl size-12 flex justify-center items-center group-hover:bg-primary/20 transition-colors'>
               <MessageSquare size={40} className='text-primary' />
             </div>
-            <h1 className='text-gray-200 text-2xl font-bold'>Create Account</h1>
-            <p className='text-gray-300 text-md'>
+            <h1 className='text-foreground text-2xl font-bold'>
+              Create Account
+            </h1>
+            <p className='text-muted-foreground text-md'>
               Get started with your free account
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className='space-y-6 mt-6 w-[350px]'>
+        <form
+          onSubmit={handleSubmit}
+          className='space-y-6 mt-6 w-[230px] md:w-[300px] lg:w-[340px]'
+        >
           <div className='flex flex-col gap-2'>
             <label className=''>
-              <span className='font-normal text-md text-gray-200'>
+              <span className='font-normal text-md text-foreground'>
                 Full Name
               </span>
             </label>
-            <div className='flex relative border items-center rounded-md'>
+            <div className='flex relative border  border-muted-foreground items-center rounded-md'>
               <div className='px-1'>
                 <User size={20} className='text-gray-500 stroke-[1px]' />
               </div>
@@ -86,9 +91,9 @@ export default function SignUpPage() {
 
           <div className='flex flex-col gap-2'>
             <label className=''>
-              <span className='font-normal text-md text-gray-200'>Email</span>
+              <span className='font-normal text-md text-foreground'>Email</span>
             </label>
-            <div className='flex relative border items-center rounded-md'>
+            <div className='flex relative border  border-muted-foreground items-center rounded-md'>
               <div className='px-1'>
                 <Mail size={20} className='text-gray-500 stroke-[1px]' />
               </div>
@@ -106,18 +111,18 @@ export default function SignUpPage() {
 
           <div className='flex flex-col gap-2'>
             <label className=''>
-              <span className='font-normal text-md text-gray-200'>
+              <span className='font-normal text-md text-foreground'>
                 Password
               </span>
             </label>
-            <div className='flex relative border items-center rounded-md'>
+            <div className='flex relative border items-center rounded-md  border-muted-foreground'>
               <div className='px-1'>
                 <Lock size={20} className='text-gray-500 stroke-[1px]' />
               </div>
               <Input
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
-                className='border-none ring-0 focus:ring-0 focus-visible:ring-0'
+                className='border-none ring-0 focus:ring-0 focus-visible:ring-0 w-full'
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
@@ -129,9 +134,9 @@ export default function SignUpPage() {
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeClosed size={20} className='group-hover:text-gray-200' />
+                  <EyeClosed size={20} className='group-hover:text-gray-900' />
                 ) : (
-                  <Eye size={20} className='group-hover:text-gray-200' />
+                  <Eye size={20} className='group-hover:text-gray-900' />
                 )}
               </button>
             </div>
@@ -153,7 +158,7 @@ export default function SignUpPage() {
           </Button>
         </form>
 
-        <div className='mt-2 text-gray-200 text-sm'>
+        <div className='mt-2 text-foreground text-sm'>
           <p>
             Already have an account?{" "}
             <Link

@@ -26,7 +26,7 @@ export default function LoginPage() {
     login(formData);
   };
   return (
-    <div className='min-h-screen grid lg:grid-cols-2 mt-10'>
+    <div className='min-h-screen grid lg:grid-cols-2 mt-10 w-full'>
       {/* left side */}
       <div className='flex flex-col justify-center items-center p-6 sm:p-12'>
         <div className='w-full max-w-md space-y-8'>
@@ -42,7 +42,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className='space-y-6 mt-6 w-[350px]'>
+        <form
+          onSubmit={handleSubmit}
+          className='space-y-6 mt-6 w-[230px] md:w-[300px] lg:w-[340px]'
+        >
           <div className='flex flex-col gap-2'>
             <label className=''>
               <span className='font-normal text-md text-foreground'>Email</span>
@@ -88,9 +91,9 @@ export default function LoginPage() {
                 onClick={() => setShowPassword(!showPassword)}
               >
                 {showPassword ? (
-                  <EyeClosed size={20} className='group-hover:text-gray-200' />
+                  <EyeClosed size={20} className='group-hover:text-gray-900' />
                 ) : (
-                  <Eye size={20} className='group-hover:text-gray-200' />
+                  <Eye size={20} className='group-hover:text-gray-900' />
                 )}
               </button>
             </div>

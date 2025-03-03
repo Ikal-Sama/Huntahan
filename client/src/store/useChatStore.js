@@ -8,7 +8,9 @@ import { useAuthStore } from './useAuthStore';
 export const useChatStore = create((set, get) => ({
     messages: [],
     users: [],
+    friends: [],
     selectedUser: null,
+    viewProfile: false,
     isUsersLoading: false,
     isMessagesLoading: false,
 
@@ -23,6 +25,19 @@ export const useChatStore = create((set, get) => ({
             toast.error(error.response.data.message);
         }finally{ 
             set({isUsersLoading: false});
+        }
+    },
+
+    getFriends: async () => {
+        set({ isUsersLoading: true });
+        try {
+            const res = await axiosInstance.get("/messages/users/friends");
+            console.log("Fetched friends:", res.data);
+            set({ friends: res.data }); // Store friends instead of all users
+        } catch (error) {
+            toast.error(error.response.data.message);
+        } finally {
+            set({ isUsersLoading: false });
         }
     },
 
@@ -66,5 +81,6 @@ export const useChatStore = create((set, get) => ({
         socket.off("newMessage");
     },
 
-    setSelectedUser: async (selectedUser) => set({selectedUser})
+    setSelectedUser: (selectedUser) => set({ selectedUser, viewProfile: false }), 
+    setViewProfile: (viewProfile) => set({ viewProfile }),
 }))

@@ -6,7 +6,12 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 export const getUsersForSidebar = async (req, res) => {
     try {
         const loggedInUserId = req.user._id;
-        const filteredUsers = await User.find({_id: {$ne:loggedInUserId}}).select("-password");
+        const loggedInUser = await User.findById(loggedInUserId).populate('friends', '-password');
+        const friendIds = loggedInUser.friends.map(friend => friend._id)
+
+        const filteredUsers = await User.find({
+            _id: { $nin: [loggedInUserId, ...friendIds] }, // $nin excludes IDs
+        }).select('-password');
 
         res.status(200).json(filteredUsers)
     } catch (error) {
@@ -14,6 +19,34 @@ export const getUsersForSidebar = async (req, res) => {
         res.status(500).json({message: "Internal Server Error"})
     }
 }
+
+export const getFriendsForMessages = async (req, res) => {
+    try {
+        const loggedInUserId = req.user._id;
+
+        // Find the logged-in user and populate the `friends` field directly
+        const loggedInUser = await User.findById(loggedInUserId).populate({
+            path: "friends",
+            select: "fullName profilePic", // Include the fields you want to populate
+        });
+
+        if (!loggedInUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Map over the populated friends array
+        const friends = loggedInUser.friends.map((friend) => ({
+            _id: friend._id,
+            fullName: friend.fullName,
+            profilePic: friend.profilePic,
+        }));
+
+        res.status(200).json(friends);
+    } catch (error) {
+        console.error("Error in getFriendsForMessages controller:", error.message);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
 
 export const getMessages = async (req, res) => {
     try {

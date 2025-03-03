@@ -1,40 +1,96 @@
-import {Server} from 'socket.io'
-import http from 'http'
-import express from 'express'
-
+import { Server } from 'socket.io';
+import http from 'http';
+import express from 'express';
+import User from '../models/user.model.js';
 
 const app = express();
 const server = http.createServer(app);
 
-
 const io = new Server(server, {
-    cors: {
-        origin: ["http://localhost:5173"],
-    }
-})
+  cors: {
+    origin: ["http://localhost:5173"],
+  },
+});
 
 export function getReceiverSocketId(userId) {
-    return userScoketMap[userId];
+  return userSocketMap[userId];
 }
 
-// used to store online users
-const userScoketMap = {}; // {userId: socketId}
+// Used to store online users
+const userSocketMap = {}; // {userId: socketId}
 
 io.on("connection", (socket) => {
-    console.log("A user connected", socket.id);
+  console.log("A user connected", socket.id);
 
-    const userId = socket.handshake.query.userId;
-    if(userId) userScoketMap[userId] = socket.id
+  const userId = socket.handshake.query.userId;
+  if (userId) userSocketMap[userId] = socket.id;
 
-    //io.emit() is used to send events to all the connected clients
-    io.emit("getOnlineUsers", Object.keys(userScoketMap));
+  // Emit online users to all clients
+  io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-    socket.on("disconnect", () => {
-        console.log("A user disconnected", socket.id);
-        delete userScoketMap[userId];
-        io.emit("getOnlineUsers", Object.keys(userScoketMap));
-    })
-    
-})
+  // Handle friend request acceptance
+  socket.on("acceptFriendRequest", async ({ senderId }) => {
+    try {
+      const recipient = await User.findById(userId); // Recipient's ID
+      const sender = await User.findById(senderId); // Sender's ID
+  
+      if (!recipient || !sender) {
+        return;
+      }
+  
+      // Update the friend request status to "accepted"
+      const friendRequest = recipient.friendRequests.find(
+        (request) => request.senderId.toString() === senderId && request.status === "pending"
+      );
+  
+      if (!friendRequest) {
+        return;
+      }
+  
+      friendRequest.status = "accepted";
+      await recipient.save();
+  
+      // Add each other as friends
+      if (!recipient.friends.includes(senderId)) {
+        recipient.friends.push(senderId);
+        await recipient.save();
+      }
+  
+      if (!sender.friends.includes(userId)) {
+        sender.friends.push(userId);
+        await sender.save();
+      }
+  
+      // Notify the sender that the request was accepted
+      const senderSocketId = getReceiverSocketId(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("friendRequestAccepted", {
+          recipientId: userId,
+          recipientName: recipient.fullName,
+        });
+      }
+    } catch (error) {
+      console.log("Error accepting friend request:", error);
+    }
+  });
 
-export {io, app, server};
+  // Handle friend request decline
+  socket.on("declineFriendRequest", ({ senderId }) => {
+    const senderSocketId = getReceiverSocketId(senderId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("friendRequestDeclined", {
+        recipientId: userId,
+        recipientName: "User", // Replace with the recipient's name if available
+      });
+    }
+  });
+
+  // Handle user disconnect
+  socket.on("disconnect", () => {
+    console.log("A user disconnected", socket.id);
+    delete userSocketMap[userId];
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
+  });
+});
+
+export { io, app, server };
