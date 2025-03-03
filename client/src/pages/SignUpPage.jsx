@@ -52,7 +52,7 @@ export default function SignUpPage() {
           {/* LOGO */}
           <div className='flex flex-col items-center gap-2 group'>
             <div className='bg-primary/10 rounded-xl size-12 flex justify-center items-center group-hover:bg-primary/20 transition-colors'>
-              <MessageSquare size={40} className='text-primary' />
+              <img src='./logo.png' alt='Logo' className='size-12' />
             </div>
             <h1 className='text-foreground text-2xl font-bold'>
               Create Account
