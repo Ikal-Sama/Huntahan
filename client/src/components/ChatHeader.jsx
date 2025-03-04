@@ -1,13 +1,22 @@
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
-import { X } from "lucide-react";
+import { Phone, Video, X } from "lucide-react";
 import React from "react";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
+import { useCallStore } from "@/store/useCallStore";
 
 export default function ChatHeader() {
   const { selectedUser, setViewProfile, setSelectedUser } = useChatStore();
   const { onlineUsers } = useAuthStore();
+  const { startCall } = useCallStore();
+
+  console.log("selected user", selectedUser);
+
+  const handleCall = (type) => {
+    if (!selectedUser) return;
+    startCall(selectedUser, type);
+  };
 
   return (
     <div className='p-2.5 border-b border-slate-700'>
@@ -40,6 +49,25 @@ export default function ChatHeader() {
               )}
             </p>
           </div>
+        </div>
+
+        <div className='flex gap-2'>
+          <Button
+            variant='outline'
+            size='icon'
+            className='rounded-full'
+            onClick={() => handleCall("audio")}
+          >
+            <Phone className='size-4 text-primary' />
+          </Button>
+          <Button
+            variant='outline'
+            size='icon'
+            className='rounded-full'
+            onClick={() => handleCall("video")}
+          >
+            <Video className='size-4 text-primary' />
+          </Button>
         </div>
 
         {/* Close button */}

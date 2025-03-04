@@ -229,6 +229,26 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  unFriend : async(friendId) => {
+    try {
+      const {authUser} = get();
+      if (!authUser) return toast.error("You must be logged in to unfriend someone");
+      await axiosInstance.delete(`/auth/unfriend/${friendId}`)
+
+      // Update the local state to remove the friend
+      set((state) => ({
+        authUser: {
+          ...state.authUser,
+          friends: state.authUser.friends.filter((id) => id.toString() !== friendId)
+        }
+      }))
+      toast.success("Unfriended successfully");
+    } catch (error) {
+      console.error("Error unfriending:", error);
+      toast.error(error.response?.data?.message || "Failed to unfriend");
+    }
+  },  
+
   removeFriendRequest: (senderId) => {
     set((state) => ({
       friendRequests: state.friendRequests.filter((request) => request.senderId !== senderId),

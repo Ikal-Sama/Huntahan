@@ -24,8 +24,7 @@ export default function Sidebar() {
     getFriends,
   } = useChatStore();
 
-  const { onlineUsers, authUser, addFriend, cancelFriendRequest } =
-    useAuthStore();
+  const { onlineUsers, authUser } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [showAllUsers, setShowAllUsers] = useState(false);
   const [showMessages, setShowMessages] = useState(true);
@@ -43,48 +42,6 @@ export default function Sidebar() {
   useEffect(() => {
     console.log("Current friends:", friends);
   }, [friends]);
-
-  const handleAddFriend = async (friendId) => {
-    try {
-      if (!authUser) {
-        toast.error("You must be logged in to add a friend");
-        return;
-      }
-      console.log("Friends before update:", authUser.friends);
-      await addFriend(friendId);
-      // Update the authUser.friends state
-      useAuthStore.setState((state) => ({
-        authUser: {
-          ...state.authUser,
-          friends: Array.isArray(state.authUser.friends)
-            ? [...state.authUser.friends, { user: friendId, status: "pending" }] // Add the new friend request
-            : [{ user: friendId, status: "pending" }], // Initialize as an array if it's not already
-        },
-      }));
-      await getUsers();
-      setRefresh((prev) => !prev);
-    } catch (error) {
-      console.log("Error in handleAddFriend: ", error);
-      toast.error(error.response?.data?.message || "Failed to add friend");
-    }
-  };
-
-  const handleCancelFriendRequest = async (friendId) => {
-    try {
-      if (!authUser) {
-        toast.error("You must be logged in to cancel a friend request");
-        return;
-      }
-      await cancelFriendRequest(friendId);
-      await getUsers();
-      setRefresh((prev) => !prev);
-    } catch (error) {
-      console.log("Error in handleCancelFriendRequest: ", error);
-      toast.error(
-        error.response?.data?.message || "Failed to cancel friend request"
-      );
-    }
-  };
 
   const filteredUsers = showMessages
     ? friends.filter((friend) => {

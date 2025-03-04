@@ -28,6 +28,24 @@ io.on("connection", (socket) => {
   // Emit online users to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
+  // Handle Call Initiation
+  socket.on("callUser", ({ to, signalData, from, name }) => {
+    const recipientSocketId = getReceiverSocketId(to);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit("incomingCall", { signal: signalData, from, name });
+    }
+  });
+
+   // Handle Call Acceptance
+   socket.on("answerCall", ({ to, signal }) => {
+    const callerSocketId = getReceiverSocketId(to);
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("callAccepted", signal);
+    }
+  });
+
+  
+
   // Handle friend request acceptance
   socket.on("acceptFriendRequest", async ({ senderId }) => {
     try {
@@ -71,6 +89,14 @@ io.on("connection", (socket) => {
       }
     } catch (error) {
       console.log("Error accepting friend request:", error);
+    }
+  });
+
+  // Handle Call End
+  socket.on("endCall", ({ to }) => {
+    const recipientSocketId = getReceiverSocketId(to);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit("callEnded");
     }
   });
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { acceptFriendRequest, addFriend, cancelFriendRequest, checkAuth, declineFriendRequest, getFriendRequests, login, logout, signup, updateProfile } from '../controllers/auth.controller.js';
+import { acceptFriendRequest, addFriend, cancelFriendRequest, checkAuth, declineFriendRequest, getFriendRequests, login, logout, signup, unFriend, updateProfile } from '../controllers/auth.controller.js';
 import { protectRoute } from '../middleware/auth.middleware.js';
 
 const router = express.Router()
@@ -17,5 +17,6 @@ router.post('/addfriend/:friendId', protectRoute, addFriend)
 router.post('/acceptfriend/:senderId', protectRoute, acceptFriendRequest)
 router.post("/declinefriend/:senderId", protectRoute, declineFriendRequest);
 router.post("/cancelfriend/:friendId", protectRoute, cancelFriendRequest);
+router.delete("/unfriend/:friendId", protectRoute, unFriend);
 
 export default router

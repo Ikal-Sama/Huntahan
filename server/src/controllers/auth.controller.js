@@ -1,5 +1,6 @@
 import { generateToken } from '../lib/utils.js'
 import User from '../models/user.model.js'
+import Message from '../models/message.model.js'
 import bcrypt from 'bcryptjs'
 import cloudinary from '../lib/cloudinary.js'
 import { getReceiverSocketId, io } from '../lib/socket.js'
@@ -311,6 +312,60 @@ export const declineFriendRequest = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const unFriend = async(req, res) => {
+  try {
+    const userId = req.user._id;
+    const friendId = req.params.friendId;
+
+    if(!friendId) {
+      return res.status(400).json({ message: "Friend ID is required" });
+    }
+
+    const user = await User.findById(userId);
+    const friend = await User.findById(friendId);
+
+    if (!user || !friend) {
+      return res.status(404).json({ message: "User or Friend not found" });
+    }
+
+    if (!user.friends.includes(friendId)) {
+      return res.status(400).json({ message: "User is not your friend" });
+    }
+
+
+      // Atomic removal of friendId from user's friend list
+      const userUpdate = User.updateOne(
+        { _id: userId },
+        { $pull: { friends: friendId } }
+      );
+
+      // Atomic removal of userId from friend's friend list
+      const friendUpdate = User.updateOne(
+        { _id: friendId },
+        { $pull: { friends: userId } }
+      );
+
+      // Execute both updates in parallel
+      await Promise.all([userUpdate, friendUpdate]);
+
+      // Delete messages between both users
+      await Message.deleteMany({
+        $or: [
+          { senderId: userId, receiverId: friendId },
+          { senderId: friendId, receiverId: userId },
+        ],
+      });
+
+    // send success message
+    res.status(200).json({ message: "Unfriended successfully and messages deleted" });
+
+
+  } catch (error) {
+    console.error("Error in unFriend controller:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
 
 export const getFriendRequests = async (req, res) => {
   try {

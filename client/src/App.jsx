@@ -11,6 +11,7 @@ import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 import Loading from "./components/Loading";
 import OtherProfile from "./pages/OtherProfile";
+import Upload from "./pages/Upload";
 
 export default function App() {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
@@ -48,8 +49,8 @@ export default function App() {
         />
 
         <Route
-          path='/user-profile/:id'
-          element={authUser ? <OtherProfile /> : <Navigate to='/login' />}
+          path='/upload'
+          element={authUser ? <Upload /> : <Navigate to='/login' />}
         />
       </Routes>
       <Toaster />

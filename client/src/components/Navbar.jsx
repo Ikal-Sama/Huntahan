@@ -126,21 +126,28 @@ export default function Navbar() {
                         >
                           {notification.type === "request" ? (
                             <>
-                              <div className='avatar'>
-                                <div className='size-7'>
-                                  <img
-                                    src={
-                                      notification.senderProfilePic
-                                        ? notification.senderProfilePic
-                                        : "./avatar.png"
-                                    }
-                                    alt=''
-                                  />
+                              <div className='flex items-center gap-1'>
+                                <div className='avatar'>
+                                  <div className='size-8'>
+                                    <img
+                                      src={
+                                        notification.senderProfilePic
+                                          ? notification.senderProfilePic
+                                          : "./avatar.png"
+                                      }
+                                      alt=''
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className='text-xs'>
+                                    {notification.senderName}
+                                  </span>
+                                  <p className='text-xs'>
+                                    want's to be your friend.
+                                  </p>
                                 </div>
                               </div>
-                              <span className='text-xs'>
-                                {notification.senderName}
-                              </span>
                               <div className='flex gap-2'>
                                 <div
                                   className='text-sm rounded-full cursor-pointer bg-primary p-1 hover:bg-yellow-500 transition-colors duration-200 ease-in-out'
@@ -192,8 +199,8 @@ export default function Navbar() {
                         <div className='size-8'>
                           <img
                             src={
-                              authUser.ProfilePic
-                                ? authUser.ProfilePic
+                              authUser.profilePic
+                                ? authUser.profilePic
                                 : "./avatar.png"
                             }
                             alt=''
