@@ -1,21 +1,21 @@
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
 import { Phone, Video, X } from "lucide-react";
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "./ui/button";
 import { Link } from "react-router-dom";
-import { useCallStore } from "@/store/useCallStore";
 
 export default function ChatHeader() {
   const { selectedUser, setViewProfile, setSelectedUser } = useChatStore();
-  const { onlineUsers } = useAuthStore();
-  const { startCall } = useCallStore();
+  const { onlineUsers, authUser, startCall } = useAuthStore();
 
-  console.log("selected user", selectedUser);
-
-  const handleCall = (type) => {
-    if (!selectedUser) return;
-    startCall(selectedUser, type);
+  const handleCall = async () => {
+    if (!selectedUser?._id) {
+      console.error("selectedUser._id is undefined. Cannot start call.");
+      return; // Prevent call if _id is missing
+    }
+    console.log("Calling with selectedUser._id:", selectedUser._id);
+    await startCall(selectedUser._id);
   };
 
   return (
@@ -51,34 +51,33 @@ export default function ChatHeader() {
           </div>
         </div>
 
-        <div className='flex gap-2'>
+        <div className='flex gap-1 items-center'>
           <Button
-            variant='outline'
+            variant='ghost'
             size='icon'
-            className='rounded-full'
-            onClick={() => handleCall("audio")}
+            className='rounded-full cursor-pointer group'
+            onClick={handleCall}
           >
-            <Phone className='size-4 text-primary' />
+            <Phone className='size-5 text-primary group-hover:text-accent-foreground transition-colors duration-300 ease-in-out' />
           </Button>
           <Button
+            variant='ghost'
+            size='icon'
+            className='rounded-full cursor-pointer group'
+          >
+            <Video className='size-5 text-primary group-hover:text-accent-foreground transition-colors duration-300 ease-in-out' />
+          </Button>
+
+          {/* Close button */}
+          <Button
             variant='outline'
             size='icon'
-            className='rounded-full'
-            onClick={() => handleCall("video")}
+            onClick={() => setSelectedUser(null)}
+            className='rounded-full cursor-pointer'
           >
-            <Video className='size-4 text-primary' />
+            <X className='size-4 text-primary' />
           </Button>
         </div>
-
-        {/* Close button */}
-        <Button
-          variant='outline'
-          size='icon'
-          onClick={() => setSelectedUser(null)}
-          className='rounded-full cursor-pointer'
-        >
-          <X className='size-4 text-primary' />
-        </Button>
       </div>
     </div>
   );

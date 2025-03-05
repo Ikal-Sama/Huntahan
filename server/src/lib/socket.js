@@ -28,22 +28,67 @@ io.on("connection", (socket) => {
   // Emit online users to all clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // Handle Call Initiation
-  socket.on("callUser", ({ to, signalData, from, name }) => {
-    const recipientSocketId = getReceiverSocketId(to);
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit("incomingCall", { signal: signalData, from, name });
-    }
-  });
+    // Handle user calling another user
+   socket.on("callUser", async ({ userToCall, signalData, from, name }) => {
+    try {
+      console.log("callUser event received:", { userToCall, signalData, from, name });
 
-   // Handle Call Acceptance
-   socket.on("answerCall", ({ to, signal }) => {
+    if (!userToCall) {
+      console.log("Error: userToCall is undefined.");
+      return;
+    }
+
+    const caller = await User.findById(from);
+    if (!caller) {
+      console.log("Error: Caller not found.");
+      return;
+    }
+
+    const profilePic = caller.profilePic;
+    const receiverSocketId = getReceiverSocketId(userToCall);
+    console.log("Receiver Socket ID:", receiverSocketId);
+    console.log("Signal Data:", signalData);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("callIncoming", {
+        signalData, 
+        from,
+        name,
+        profilePic,
+      });
+      console.log(`Emitting callIncoming to ${userToCall}`);
+    } else {
+      console.log(`User ${userToCall} is not online`);
+    }
+  } catch (error) {
+    console.error("Error in callUser handler:", error);
+  }
+});
+
+
+  // Handle answering a call
+  socket.on("answerCall", ({ to, signal }) => {
     const callerSocketId = getReceiverSocketId(to);
     if (callerSocketId) {
       io.to(callerSocketId).emit("callAccepted", signal);
     }
   });
 
+  // Handle call rejection
+  socket.on("rejectCall", ({ to }) => {
+    const callerSocketId = getReceiverSocketId(to);
+    if (callerSocketId) {
+      io.to(callerSocketId).emit("callRejected");
+    }
+  });
+
+  // Handle call disconnection
+  socket.on("endCall", ({ to }) => {
+    const receiverSocketId = getReceiverSocketId(to);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("callEnded");
+    }
+  });
   
 
   // Handle friend request acceptance
@@ -92,13 +137,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Handle Call End
-  socket.on("endCall", ({ to }) => {
-    const recipientSocketId = getReceiverSocketId(to);
-    if (recipientSocketId) {
-      io.to(recipientSocketId).emit("callEnded");
-    }
-  });
 
   // Handle user disconnect
   socket.on("disconnect", () => {

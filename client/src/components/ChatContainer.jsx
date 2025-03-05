@@ -7,6 +7,10 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "@/store/useAuthStore";
 import { formatMessageTime } from "@/lib/utils";
 
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5001");
+
 export default function ChatContainer() {
   const {
     messages,
@@ -38,6 +42,15 @@ export default function ChatContainer() {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  useEffect(() => {
+    socket.on("incomingCall", ({ from, name }) => {
+      alert(`${name} is calling you...`);
+      // Implement answer/reject UI here
+    });
+
+    return () => socket.off("incomingCall");
+  }, []);
 
   if (isMessagesLoading)
     return (
