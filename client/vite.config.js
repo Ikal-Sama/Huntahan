@@ -15,6 +15,7 @@ export default defineConfig({
     },
   },
   define: {
-    global: 'window', // Fixes `global` reference
-  },
+    global: 'window', // Add this line
+    'process.env': {}
+},
 })

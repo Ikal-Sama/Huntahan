@@ -12,10 +12,12 @@ import { Toaster } from "react-hot-toast";
 import Loading from "./components/Loading";
 import OtherProfile from "./pages/OtherProfile";
 import Upload from "./pages/Upload";
+import process from "process";
 
 export default function App() {
   const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
   console.log("Online Users:", onlineUsers);
+  window.process = process;
 
   useEffect(() => {
     checkAuth();

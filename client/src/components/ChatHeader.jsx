@@ -1,21 +1,29 @@
 import { useAuthStore } from "@/store/useAuthStore";
 import { useChatStore } from "@/store/useChatStore";
 import { Phone, Video, X } from "lucide-react";
-import React, { useEffect } from "react";
+import React from "react";
 import { Button } from "./ui/button";
-import { Link } from "react-router-dom";
 
 export default function ChatHeader() {
   const { selectedUser, setViewProfile, setSelectedUser } = useChatStore();
   const { onlineUsers, authUser, startCall } = useAuthStore();
 
-  const handleCall = async () => {
+  const handleVoiceCall = async () => {
     if (!selectedUser?._id) {
       console.error("selectedUser._id is undefined. Cannot start call.");
       return; // Prevent call if _id is missing
     }
-    console.log("Calling with selectedUser._id:", selectedUser._id);
-    await startCall(selectedUser._id);
+    console.log("Starting voice call with selectedUser._id:", selectedUser._id);
+    await startCall(selectedUser._id, false); // false for voice-only call
+  };
+
+  const handleVideoCall = async () => {
+    if (!selectedUser?._id) {
+      console.error("selectedUser._id is undefined. Cannot start call.");
+      return; // Prevent call if _id is missing
+    }
+    console.log("Starting video call with selectedUser._id:", selectedUser._id);
+    await startCall(selectedUser._id, true); // true for video call
   };
 
   return (
@@ -52,18 +60,22 @@ export default function ChatHeader() {
         </div>
 
         <div className='flex gap-1 items-center'>
+          {/* Voice Call Button */}
           <Button
             variant='ghost'
             size='icon'
             className='rounded-full cursor-pointer group'
-            onClick={handleCall}
+            onClick={handleVoiceCall}
           >
             <Phone className='size-5 text-primary group-hover:text-accent-foreground transition-colors duration-300 ease-in-out' />
           </Button>
+
+          {/* Video Call Button */}
           <Button
             variant='ghost'
             size='icon'
             className='rounded-full cursor-pointer group'
+            onClick={handleVideoCall}
           >
             <Video className='size-5 text-primary group-hover:text-accent-foreground transition-colors duration-300 ease-in-out' />
           </Button>

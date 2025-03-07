@@ -8,8 +8,13 @@ import { useChatStore } from "@/store/useChatStore";
 
 export default function HomePage() {
   const { selectedUser, viewProfile } = useChatStore();
-  const { authUser, addFriend, cancelFriendRequest, incomingCall } =
-    useAuthStore();
+  const {
+    authUser,
+    addFriend,
+    cancelFriendRequest,
+    incomingCall,
+    isCallActive,
+  } = useAuthStore();
 
   const isFriend = authUser?.friends?.includes(selectedUser?._id);
 
@@ -19,8 +24,8 @@ export default function HomePage() {
         <div className='bg-accent rounded-lg shadow-xl w-full max-w-6xl h-[calc(100vh-8rem)]'>
           <div className='flex h-full rounded-lg overflow-hidden'>
             <Sidebar />
-            {incomingCall ? (
-              <CallInterface /> // Render IncomingCallContainer if there's an incoming call
+            {incomingCall || isCallActive ? (
+              <CallInterface /> // Render CallInterface if there's an incoming call or an active call
             ) : !selectedUser ? (
               <NoChatSelected />
             ) : viewProfile ? (

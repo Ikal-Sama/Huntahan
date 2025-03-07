@@ -2,10 +2,10 @@ import { axiosInstance } from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { create } from 'zustand';
 import { io } from 'socket.io-client';
-import Peer from 'simple-peer';
+import SimplePeer from 'simple-peer';
 
 console.log("WebRTC supported:", !!navigator.mediaDevices && !!navigator.mediaDevices.getUserMedia);
-console.log("SimplePeer:", Peer);
+console.log("SimplePeer:", SimplePeer);
 
 
 const BASE_URL = import.meta.env.MODE === "development" ? import.meta.env.VITE_SERVER_URL : "/";
@@ -29,6 +29,7 @@ export const useAuthStore = create((set, get) => ({
   remoteStream: null,
   peer: null,
   isCallActive: false,
+  isVideoCall: true,
 
   checkAuth: async () => {
     try {
@@ -276,81 +277,111 @@ export const useAuthStore = create((set, get) => ({
     }));
   },
 
-  startCall: async (receiverId) => {
+  startCall: async (receiverId, isVideoCall = true) => {
     console.log("Start CALL IS CALLED:", receiverId);
-    
+
     const { authUser, socket } = get();
     console.log("SOCKET CONNECTION:", socket);
-  
+
     if (!authUser || !socket) return;
     if (!receiverId) {
-      console.error("receiverId is undefined in startCall.");
-      return;
+        console.error("receiverId is undefined in startCall.");
+        return;
     }
-  
+
     try {
-      console.log("Accessing media....");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log("Microphone access granted:", stream);
-      console.log("Stream active:", stream.active);
-      console.log("Stream tracks:", stream.getTracks());
-      set({ localStream: stream });
-  
-      console.log("Creating peer....");
-      
-      const peerSignal = new Peer({ initiator: true, trickle: false, stream: stream});
-      console.log("Peer object created:", peerSignal);
-    
-      peerSignal.on('signal', (data) => {
-        console.log("Generated signal:", data);
-        console.log("Emitting callUser:", {
-          from: authUser._id,
-          userToCall: receiverId,
-          name: authUser.fullName,
-          profilePic: authUser.profilePic,
-          signalData: data
+        console.log("Accessing media....");
+        const constraints = {
+          audio: true,
+          video: isVideoCall ? true : false, // Request video only if it's a video call
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("Microphone access granted:", stream);
+        console.log("Stream active:", stream.active);
+        console.log("Stream tracks:", stream.getTracks());
+        set({ localStream: stream, isVideoCall });
+
+        if (stream.getAudioTracks().length === 0) {
+            console.error("No audio tracks found in the stream.");
+            toast.error("No microphone access.");
+            return;
+        }
+        console.log("Creating peer....");
+        // Ensure Peer is properly imported
+        console.log("Peer class:", SimplePeer);
+        const peer = new SimplePeer({ initiator: true, trickle: false, stream: stream});
+        console.log("Peer object created:", peer);
+        set({ peer: peer });
+
+        peer.on('signal', (data) => {
+            console.log("Caller Generated signal:", data);
+            console.log("Emitting callUser:", {
+                from: authUser._id,
+                userToCall: receiverId,
+                name: authUser.fullName,
+                profilePic: authUser.profilePic,
+                signalData: data,
+                isVideoCall,
+            });
+            socket.emit('callUser', {
+                from: authUser._id,
+                userToCall: receiverId,
+                name: authUser.fullName,
+                profilePic: authUser.profilePic,
+                signalData: data,
+                isVideoCall,
+            });
         });
-        socket.emit('callUser', {
-          from: authUser._id,
-          userToCall: receiverId,
-          name: authUser.fullName,
-          profilePic: authUser.profilePic,
-          signalData: data
+
+        peer.on('stream', (remoteStream) => {
+          console.log("Caller received remote stream:", remoteStream);
+          set({ remoteStream });
         });
-      });
-  
-      peerSignal.on('stream', (remoteStream) => {
-        console.log("Remote stream received:", remoteStream);
-        set({ remoteStream });
-      });
-  
-      peerSignal.on('close', () => {
-        console.log("Peer connection closed.");
-        set({ peer: null, remoteStream: null, localStream: null, isCallActive: false });
+
+        peer.on('close', () => {
+            console.log("Peer connection closed.");
+            set({ peer: null, remoteStream: null, localStream: null, isCallActive: false });
+        });
+
+        peer.on('error', (error) => {
+            console.error("Peer error:", error);
+            toast.error('Peer connection error.');
+        });
+
+
+        // Listen for the callAccepted event
+        socket.on('callAccepted', (signal) => {
+          console.log("Call accepted, signaling peer:", signal);
+          if (peer) {
+              if (signal) {
+                  peer.signal(signal); // Directly use signal instead of wrapping it
+                  set({ isCallActive: true });
+              } else {
+                  console.error("Received null or undefined signal data.", signal);
+              }
+          } else {
+              console.error("Peer object is null when callAccepted is received.");
+          }
       });
 
-      peerSignal.on('error', (error) => {
-        console.error("Peer error:", error);
-        toast.error('Peer connection error.');
-      });
-  
-  
-      socket.on('callAccepted', (signal) => {
-        console.log("Call accepted, signaling peer:", signal);
-        peerSignal.signal(signal);
-        set({ isCallActive: true });
-      });
+        // Handle call timeout (30s)
+        setTimeout(() => {
+          if (!get().isCallActive) {
+              console.log("Call not accepted, ending call...");
+              socket.emit('callRejected', { from: authUser._id, to: receiverId });
+              set({ peer: null, remoteStream: null, localStream: null, isCallActive: false });
+              toast.error("Call not answered.");
+          }
+      }, 30000);
 
       
-  
-      set({ peer: peerSignal });
-      toast.success("Calling...");
+        toast.success("Calling...");
     } catch (error) {
-      console.error('Error starting call:', error.message);
-      toast.error('Failed to start call.');
-      
+        console.error('Error startingcall:', error);
+        toast.error('Failed to start call.');
+
     }
-  },
+},
   
   listenForIncomingCall: () => {
     const { socket } = get();
@@ -366,43 +397,56 @@ export const useAuthStore = create((set, get) => ({
   acceptCall: async () => {
     const { socket, incomingCall, authUser } = get();
     if (!socket || !incomingCall) return;
-
+  
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        set({ localStream: stream });
-
-        const peer = new SimplePeer({ initiator: false, trickle: false, stream });
-
-        peer.on('signal', (signal) => {
-            socket.emit('answerCall', { signal, to: incomingCall.from });
-        });
-
-        peer.on('stream', (remoteStream) => {
-            set({ remoteStream });
-        });
-
-        peer.on('close', () => {
-            set({ peer: null, remoteStream: null, localStream: null, isCallActive: false });
-        });
-
-        socket.on('callAccepted', (signal) => {
-            peer.signal(signal);
-            set({ isCallActive: true });
-        });
-
-        set({ peer });
-
-        socket.emit("answerCall", { from: incomingCall.to, to: incomingCall.from });
-
-        set({ incomingCall: null });
-        toast.success("Call accepted");
-
+      const constraints = {
+        audio: true,
+        video: incomingCall.isVideoCall ? true : false, // Request video only if it's a video call
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      set({ localStream: stream });
+  
+      const peer = new SimplePeer({ initiator: false, trickle: false, stream: stream });
+      console.log("Accept call peer:", peer);
+  
+      peer.on('signal', (signal) => {
+          console.log("Receiver signal data:", signal);
+          socket.emit('answerCall', { signal, to: incomingCall.from });
+      });
+  
+      peer.on('stream', (remoteStream) => {
+        console.log("Receiver received remote stream:", remoteStream);
+        set({ remoteStream });
+      });
+  
+      peer.on('close', () => {
+        console.log("Peer connection closed.");
+        set({ peer: null, remoteStream: null, localStream: null, isCallActive: false });
+      });
+  
+      peer.on('error', (error) => {
+        console.error("Peer error:", error);
+        toast.error('Peer connection error.');
+      });
+  
+      // Set the peer object in the state
+      set({ peer });
+  
+      // Signal the incoming call's signal data to the peer
+      if (incomingCall.signalData) {
+        console.log("Receiver signaling with incoming call signal data:", incomingCall.signalData);
+        peer.signal(incomingCall.signalData);
+      }
+  
+      // Clear the incoming call state
+      set({ incomingCall: null });
+      toast.success("Call accepted");
     } catch (error) {
-        console.error('Error accepting call:', error);
-        toast.error('Failed to accept call.');
-        set({ incomingCall: null });
+      console.error('Error accepting call:', error);
+      toast.error('Failed to accept call.');
+      set({ incomingCall: null });
     }
-},
+  },
 
 rejectCall: () => {
   const { socket, incomingCall } = get();

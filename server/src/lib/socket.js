@@ -29,48 +29,26 @@ io.on("connection", (socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
     // Handle user calling another user
-   socket.on("callUser", async ({ userToCall, signalData, from, name }) => {
-    try {
-      console.log("callUser event received:", { userToCall, signalData, from, name });
-
-    if (!userToCall) {
-      console.log("Error: userToCall is undefined.");
-      return;
-    }
-
-    const caller = await User.findById(from);
-    if (!caller) {
-      console.log("Error: Caller not found.");
-      return;
-    }
-
-    const profilePic = caller.profilePic;
-    const receiverSocketId = getReceiverSocketId(userToCall);
-    console.log("Receiver Socket ID:", receiverSocketId);
-    console.log("Signal Data:", signalData);
-
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("callIncoming", {
-        signalData, 
-        from,
-        name,
-        profilePic,
-      });
-      console.log(`Emitting callIncoming to ${userToCall}`);
-    } else {
-      console.log(`User ${userToCall} is not online`);
-    }
-  } catch (error) {
-    console.error("Error in callUser handler:", error);
-  }
-});
-
+    socket.on("callUser", async ({ userToCall, signalData, from, name, isVideoCall }) => {
+      const receiverSocketId = getReceiverSocketId(userToCall);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit("callIncoming", {
+          signalData,
+          from,
+          name,
+          isVideoCall, // Relay call type to the receiver
+        });
+      }
+    });
 
   // Handle answering a call
-  socket.on("answerCall", ({ to, signal }) => {
-    const callerSocketId = getReceiverSocketId(to);
+  socket.on("answerCall", (data) => {
+    console.log("Answer Call:", data); // Log the incoming data
+    const callerSocketId = getReceiverSocketId(data.to);
     if (callerSocketId) {
-      io.to(callerSocketId).emit("callAccepted", signal);
+      io.to(callerSocketId).emit("callAccepted", data.signal);
+    } else {
+      console.error("Caller socket ID not found for user:", data.to);
     }
   });
 
