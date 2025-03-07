@@ -27,6 +27,7 @@ export const useAuthStore = create((set, get) => ({
   acceptanceNotifications: [],
   localStream: null,
   remoteStream: null,
+  remoteUserProfile: null,
   peer: null,
   isCallActive: false,
   isVideoCall: true,
@@ -296,6 +297,7 @@ export const useAuthStore = create((set, get) => ({
           video: isVideoCall ? true : false, // Request video only if it's a video call
         };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream.getAudioTracks().forEach((track) => (track.enabled = true));
         console.log("Microphone access granted:", stream);
         console.log("Stream active:", stream.active);
         console.log("Stream tracks:", stream.getTracks());
@@ -336,6 +338,11 @@ export const useAuthStore = create((set, get) => ({
         peer.on('stream', (remoteStream) => {
           console.log("Caller received remote stream:", remoteStream);
           set({ remoteStream });
+          const audioElement = new Audio();
+          audioElement.srcObject = stream;
+          audioElement.play().catch((err) => {
+            console.error("Autoplay error:", err);
+          });
         });
 
         peer.on('close', () => {
@@ -350,19 +357,25 @@ export const useAuthStore = create((set, get) => ({
 
 
         // Listen for the callAccepted event
-        socket.on('callAccepted', (signal) => {
-          console.log("Call accepted, signaling peer:", signal);
+        socket.on('callAccepted', (data) => {
+          console.log("Call accepted, signaling peer:", data.signal);
           if (peer) {
-              if (signal) {
-                  peer.signal(signal); // Directly use signal instead of wrapping it
-                  set({ isCallActive: true });
-              } else {
-                  console.error("Received null or undefined signal data.", signal);
-              }
+            if (data.signal) {
+              peer.signal(data.signal); // Directly use signal instead of wrapping it
+              set({ 
+                isCallActive: true, 
+                remoteUserProfile: {
+                  name: data.receiverName,
+                  profilePic: data.receiverProfilePic,
+                },
+              });
+            } else {
+              console.error("Received null or undefined signal data.", data.signal);
+            }
           } else {
-              console.error("Peer object is null when callAccepted is received.");
+            console.error("Peer object is null when callAccepted is received.");
           }
-      });
+        });
 
         // Handle call timeout (30s)
         setTimeout(() => {
@@ -401,23 +414,56 @@ export const useAuthStore = create((set, get) => ({
     try {
       const constraints = {
         audio: true,
-        video: incomingCall.isVideoCall ? true : false, // Request video only if it's a video call
+        video: incomingCall.isVideoCall // Request video only if it's a video call
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      set({ localStream: stream });
+      // Ensure audio is enabled
+    stream.getAudioTracks().forEach((track) => (track.enabled = true));
+      console.log("AUDO TRACkS:", stream.getAudioTracks());
+      console.log("Microphone access granted:", stream);
+      console.log("Stream active:", stream.active);
+      console.log("Stream tracks:", stream.getTracks());
+      
+      set({ 
+        localStream: stream, 
+        isVideoCall: incomingCall.isVideoCall,
+        remoteUserProfile: { // Set the caller's profile immediately
+          name: incomingCall.name,
+          profilePic: incomingCall.profilePic,
+        },
+      });
   
       const peer = new SimplePeer({ initiator: false, trickle: false, stream: stream });
       console.log("Accept call peer:", peer);
+      set({ peer: peer, isCallActive: true });
   
       peer.on('signal', (signal) => {
-          console.log("Receiver signal data:", signal);
-          socket.emit('answerCall', { signal, to: incomingCall.from });
-      });
+        console.log("Receiver signal data:", signal);
+        socket.emit('answerCall', {
+          signal,
+          to: incomingCall.from,
+          receiverName: authUser.fullName, // Send receiver's profile
+          receiverProfilePic: authUser.profilePic, 
+        });
+    });
+
   
-      peer.on('stream', (remoteStream) => {
-        console.log("Receiver received remote stream:", remoteStream);
-        set({ remoteStream });
+    peer.on('stream', (remoteStream) => {
+      set({ remoteStream }); // Update remoteStream in state
+      set({ remoteStream: stream });
+
+      const audioElement = new Audio();
+      audioElement.srcObject = stream;
+      audioElement.play().catch((err) => {
+        console.error("Autoplay error:", err);
       });
+      console.log("Remote stream tracks:", remoteStream.getTracks());
+      if (!remoteStream || remoteStream.getTracks().length === 0) {
+        console.error("No tracks in remoteStream");
+        toast.error("No video stream received.");
+      }
+    });
+
   
       peer.on('close', () => {
         console.log("Peer connection closed.");
@@ -428,10 +474,6 @@ export const useAuthStore = create((set, get) => ({
         console.error("Peer error:", error);
         toast.error('Peer connection error.');
       });
-  
-      // Set the peer object in the state
-      set({ peer });
-  
       // Signal the incoming call's signal data to the peer
       if (incomingCall.signalData) {
         console.log("Receiver signaling with incoming call signal data:", incomingCall.signalData);

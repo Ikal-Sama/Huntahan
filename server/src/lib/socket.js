@@ -29,29 +29,57 @@ io.on("connection", (socket) => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
     // Handle user calling another user
-    socket.on("callUser", async ({ userToCall, signalData, from, name, isVideoCall }) => {
+    socket.on("callUser", async ({ userToCall, signalData, from, name, profilePic, isVideoCall }) => {
       const receiverSocketId = getReceiverSocketId(userToCall);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("callIncoming", {
           signalData,
           from,
           name,
+          profilePic,
           isVideoCall, // Relay call type to the receiver
         });
       }
+      console.log("Caller data:", userToCall, signalData, from, name, profilePic, isVideoCall);
+      
     });
 
   // Handle answering a call
-  socket.on("answerCall", (data) => {
-    console.log("Answer Call:", data); // Log the incoming data
+  socket.on("answerCall", async (data) => {
+    console.log("Answer Call:", data);
     const callerSocketId = getReceiverSocketId(data.to);
     if (callerSocketId) {
-      io.to(callerSocketId).emit("callAccepted", data.signal);
+      try {
+        const caller = await User.findById(data.to); // Retrieve caller's profile
+        const receiver = await User.findById(data.from); // Retrieve receiver's profile
+  
+        // Send caller's profile to the receiver
+        io.to(callerSocketId).emit("callAccepted", {
+          signal: data.signal,
+          receiverName: data.receiverName,
+          receiverProfilePic: data.receiverProfilePic,
+          callerProfile: { // Send the caller's profile to the receiver
+            name: caller.fullName,
+            profilePic: caller.profilePic,
+          },
+        });
+  
+        // Send receiver's profile to the caller
+        const receiverSocketId = getReceiverSocketId(data.from);
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("callerProfile", {
+            name: receiver.fullName,
+            profilePic: receiver.profilePic,
+          });
+        }
+      } catch (error) {
+        console.error("Error retrieving profiles:", error);
+      }
     } else {
       console.error("Caller socket ID not found for user:", data.to);
     }
   });
-
+  
   // Handle call rejection
   socket.on("rejectCall", ({ to }) => {
     const callerSocketId = getReceiverSocketId(to);
